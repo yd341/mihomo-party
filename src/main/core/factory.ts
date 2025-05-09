@@ -84,7 +84,7 @@ async function overrideProfile(
     const content = await getOverride(ov, item?.ext || 'js')
     switch (item?.ext) {
       case 'js':
-        profile = runOverrideScript(profile, content, item)
+        profile = await runOverrideScript(profile, content, item)
         break
       case 'yaml': {
         let patch = yaml.parse(content, { merge: true }) || {}
@@ -97,11 +97,11 @@ async function overrideProfile(
   return profile
 }
 
-function runOverrideScript(
+async function runOverrideScript(
   profile: IMihomoConfig,
   script: string,
   item: IOverrideItem
-): IMihomoConfig {
+): Promise<IMihomoConfig> {
   const log = (type: string, data: string, flag = 'a'): void => {
     writeFileSync(overridePath(item.id, 'log'), `[${type}] ${data}\n`, {
       encoding: 'utf-8',
@@ -121,16 +121,24 @@ function runOverrideScript(
       Buffer
     }
     vm.createContext(ctx)
-    const code = `${script} main(${JSON.stringify(profile)})`
     log('info', '开始执行脚本', 'w')
-    const newProfile = vm.runInContext(code, ctx)
+    vm.runInContext(script, ctx)
+    const promise = vm.runInContext(
+      `(async () => {
+        const result = main(${JSON.stringify(profile)})
+        if (result instanceof Promise) return await result
+        return result
+      })()`,
+      ctx
+    )
+    const newProfile = await promise
     if (typeof newProfile !== 'object') {
       throw new Error('脚本返回值必须是对象')
     }
     log('info', '脚本执行成功')
     return newProfile
   } catch (e) {
-    log('exception', '脚本执行失败：', util.inspect(e, { showHidden: true, depth: null }))
+    log('exception', '脚本执行失败：' + util.inspect(e, { showHidden: true, depth: null }))
     return profile
   }
 }
