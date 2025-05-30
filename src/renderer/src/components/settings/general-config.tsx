@@ -50,7 +50,8 @@ const GeneralConfig: React.FC = () => {
     customTheme = 'default.css',
     envType = [platform === 'win32' ? 'powershell' : 'bash'],
     autoCheckUpdate,
-    appTheme = 'system'
+    appTheme = 'system',
+    updateChannel = 'stable'
   } = appConfig || {}
 
   useEffect(() => {
@@ -101,20 +102,20 @@ const GeneralConfig: React.FC = () => {
             }}
           />
         </SettingItem>
-        {/* <SettingItem title="更新通道" divider>
-        <Select
+        <SettingItem title="更新通道" divider>
+          <Select
             classNames={{ trigger: 'data-[hover=true]:bg-default-200' }}
             className="w-[150px]"
             size="sm"
             selectedKeys={new Set([updateChannel])}
             onSelectionChange={async (v) => {
-              patchAppConfig({ updateChannel: v.currentKey as string })
+              patchAppConfig({ updateChannel: v.currentKey as 'stable' | 'beta' })
             }}
           >
-            <SelectItem key="release">正式版</SelectItem>
-            <SelectItem key="testing">测试版</SelectItem>
+            <SelectItem key="stable">正式版</SelectItem>
+            <SelectItem key="beta">测试版</SelectItem>
           </Select>
-        </SettingItem> */}
+        </SettingItem>
         <SettingItem title="静默启动" divider>
           <Switch
             size="sm"

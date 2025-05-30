@@ -278,6 +278,7 @@ interface IHost {
 }
 
 interface IAppConfig {
+  updateChannel: 'stable' | 'beta'
   core: 'mihomo' | 'mihomo-alpha'
   disableLoopbackDetector: boolean
   disableEmbedCA: boolean

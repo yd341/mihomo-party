@@ -1,7 +1,7 @@
 import axios from 'axios'
 import yaml from 'yaml'
 import { app, shell } from 'electron'
-import { getControledMihomoConfig } from '../config'
+import { getAppConfig, getControledMihomoConfig } from '../config'
 import { dataDir, exeDir, exePath, isPortable, resourcesFilesDir } from '../utils/dirs'
 import { copyFile, rm, writeFile } from 'fs/promises'
 import path from 'path'
@@ -12,20 +12,22 @@ import { promisify } from 'util'
 
 export async function checkUpdate(): Promise<IAppVersion | undefined> {
   const { 'mixed-port': mixedPort = 7890 } = await getControledMihomoConfig()
-  const res = await axios.get(
-    'https://github.com/xishang0128/sparkle/releases/latest/download/latest.yml',
-    {
-      headers: { 'Content-Type': 'application/octet-stream' },
-      ...(mixedPort != 0 && {
-        proxy: {
-          protocol: 'http',
-          host: '127.0.0.1',
-          port: mixedPort
-        }
-      }),
-      responseType: 'text'
-    }
-  )
+  const { updateChannel = 'stable' } = await getAppConfig()
+  let url = 'https://github.com/xishang0128/sparkle/releases/latest/download/latest.yml'
+  if (updateChannel == 'beta') {
+    url = 'https://github.com/xishang0128/sparkle/releases/download/pre-release/latest.yml'
+  }
+  const res = await axios.get(url, {
+    headers: { 'Content-Type': 'application/octet-stream' },
+    ...(mixedPort != 0 && {
+      proxy: {
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: mixedPort
+      }
+    }),
+    responseType: 'text'
+  })
   const latest = yaml.parse(res.data, { merge: true }) as IAppVersion
   const currentVersion = app.getVersion()
   if (latest.version !== currentVersion) {
@@ -37,7 +39,10 @@ export async function checkUpdate(): Promise<IAppVersion | undefined> {
 
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
   const { 'mixed-port': mixedPort = 7890 } = await getControledMihomoConfig()
-  const baseUrl = `https://github.com/xishang0128/sparkle/releases/download/${version}/`
+  let baseUrl = `https://github.com/xishang0128/sparkle/releases/download/${version}/`
+  if (version.includes('-beta-')) {
+    baseUrl = baseUrl.replace(`releases/download/${version}/`, 'releases/download/pre-release/')
+  }
   const fileMap = {
     'win32-x64': `sparkle-windows-${version}-x64-setup.exe`,
     'win32-arm64': `sparkle-windows-${version}-arm64-setup.exe`,
