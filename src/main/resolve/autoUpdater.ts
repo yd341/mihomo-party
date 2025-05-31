@@ -3,12 +3,12 @@ import yaml from 'yaml'
 import { app, shell } from 'electron'
 import { getAppConfig, getControledMihomoConfig } from '../config'
 import { dataDir, exeDir, exePath, isPortable, resourcesFilesDir } from '../utils/dirs'
-import { copyFile, rm, writeFile } from 'fs/promises'
+import { copyFile, rm, writeFile, readFile } from 'fs/promises'
 import path from 'path'
 import { existsSync } from 'fs'
-import os from 'os'
-import { exec, execSync, spawn } from 'child_process'
+import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
+import { createHash } from 'crypto'
 
 export async function checkUpdate(): Promise<IAppVersion | undefined> {
   const { 'mixed-port': mixedPort = 7890 } = await getControledMihomoConfig()
@@ -39,10 +39,11 @@ export async function checkUpdate(): Promise<IAppVersion | undefined> {
 
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
   const { 'mixed-port': mixedPort = 7890 } = await getControledMihomoConfig()
-  let baseUrl = `https://github.com/xishang0128/sparkle/releases/download/${version}/`
-  if (version.includes('-beta-')) {
-    baseUrl = baseUrl.replace(`releases/download/${version}/`, 'releases/download/pre-release/')
+  let releaseTag = version
+  if (version.includes('beta')) {
+    releaseTag = 'pre-release'
   }
+  let baseUrl = `https://github.com/xishang0128/sparkle/releases/download/${releaseTag}/`
   const fileMap = {
     'win32-x64': `sparkle-windows-${version}-x64-setup.exe`,
     'win32-arm64': `sparkle-windows-${version}-arm64-setup.exe`,
@@ -56,17 +57,26 @@ export async function downloadAndInstallUpdate(version: string): Promise<void> {
   if (!file) {
     throw new Error('不支持自动更新，请手动下载更新')
   }
-  if (process.platform === 'win32' && parseInt(os.release()) < 10) {
-    file = file.replace('windows', 'win7')
+
+  const apiUrl = `https://api.github.com/repos/xishang0128/sparkle/releases/tags/${releaseTag}`
+  const apiRequestConfig: any = {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+    ...(mixedPort != 0 && {
+      proxy: {
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: mixedPort
+      }
+    })
   }
-  if (process.platform === 'darwin') {
-    const productVersion = execSync('sw_vers -productVersion', { encoding: 'utf8' })
-      .toString()
-      .trim()
-    if (parseInt(productVersion) < 11) {
-      file = file.replace('macos', 'catalina')
-    }
+  const releaseRes = await axios.get(apiUrl, apiRequestConfig)
+  const assets: Array<{ name: string; digest?: string }> = releaseRes.data.assets || []
+  const matchedAsset = assets.find((a) => a.name === file)
+  if (!matchedAsset || !matchedAsset.digest) {
+    throw new Error(`无法从 GitHub Release 中找到 "${file}" 对应的 SHA-256 信息`)
   }
+  const expectedHash = matchedAsset.digest.split(':')[1].toLowerCase()
+
   try {
     if (!existsSync(path.join(dataDir(), file))) {
       const res = await axios.get(`${baseUrl}${file}`, {
@@ -84,6 +94,16 @@ export async function downloadAndInstallUpdate(version: string): Promise<void> {
       })
       await writeFile(path.join(dataDir(), file), res.data)
     }
+
+    const fileBuffer = await readFile(path.join(dataDir(), file))
+    const hashSum = createHash('sha256')
+    hashSum.update(fileBuffer)
+    const localHash = hashSum.digest('hex').toLowerCase()
+    if (localHash !== expectedHash) {
+      await rm(path.join(dataDir(), file), { force: true })
+      throw new Error(`SHA-256 校验失败：本地哈希 ${localHash} 与预期 ${expectedHash} 不符`)
+    }
+
     if (file.endsWith('.exe')) {
       spawn(path.join(dataDir(), file), ['/S', '--force-run'], {
         detached: true,
@@ -118,7 +138,7 @@ export async function downloadAndInstallUpdate(version: string): Promise<void> {
       }
     }
   } catch (e) {
-    rm(path.join(dataDir(), file))
+    await rm(path.join(dataDir(), file), { force: true })
     throw e
   }
 }
