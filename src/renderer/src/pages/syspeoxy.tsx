@@ -170,7 +170,7 @@ const Sysproxy: React.FC = () => {
           <SettingItem
             title="仅为活跃接口设置"
             actions={
-              <Tooltip content="开启后，系统代理仅会为当前活跃的网络接口设置，其他接口将不会被设置代理。">
+              <Tooltip content="开启后，系统代理仅会为当前活跃的网络接口设置，其他接口将不会被设置代理">
                 <Button isIconOnly size="sm" variant="light">
                   <IoIosHelpCircle className="text-lg" />
                 </Button>

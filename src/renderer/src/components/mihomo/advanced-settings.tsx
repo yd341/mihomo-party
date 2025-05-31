@@ -3,8 +3,9 @@ import SettingCard from '../base/base-setting-card'
 import SettingItem from '../base/base-setting-item'
 import InterfaceSelect from '../base/interface-select'
 import { restartCore } from '@renderer/utils/ipc'
-import { Button, Input, Select, SelectItem, Switch } from '@heroui/react'
+import { Button, Input, Select, SelectItem, Switch, Tooltip } from '@heroui/react'
 import { useState } from 'react'
+import { IoIosHelpCircle } from 'react-icons/io'
 
 const AdvancedSetting: React.FC = () => {
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -51,7 +52,17 @@ const AdvancedSetting: React.FC = () => {
           }}
         />
       </SettingItem>
-      <SettingItem title="使用 RTT 延迟测试" divider>
+      <SettingItem
+        title="使用 RTT 延迟测试"
+        actions={
+          <Tooltip content="开启后会使用统一延迟测试来获取节点延迟，以消除不同节点握手时间的影响">
+            <Button isIconOnly size="sm" variant="light">
+              <IoIosHelpCircle className="text-lg" />
+            </Button>
+          </Tooltip>
+        }
+        divider
+      >
         <Switch
           size="sm"
           isSelected={unifiedDelay}
@@ -60,7 +71,17 @@ const AdvancedSetting: React.FC = () => {
           }}
         />
       </SettingItem>
-      <SettingItem title="TCP 并发" divider>
+      <SettingItem
+        title="TCP 并发"
+        actions={
+          <Tooltip content="对 dns 解析出的多个 IP 地址进行 TCP 并发连接，使用握手时间最短的连接">
+            <Button isIconOnly size="sm" variant="light">
+              <IoIosHelpCircle className="text-lg" />
+            </Button>
+          </Tooltip>
+        }
+        divider
+      >
         <Switch
           size="sm"
           isSelected={tcpConcurrent}
@@ -130,7 +151,7 @@ const AdvancedSetting: React.FC = () => {
           />
         </div>
       </SettingItem>
-      <SettingItem title="全局客户端指纹" divider>
+      <SettingItem title="uTLS 指纹" divider>
         <Select
           size="sm"
           className="w-[150px]"
