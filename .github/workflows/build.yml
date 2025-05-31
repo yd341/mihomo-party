@@ -137,10 +137,6 @@ jobs:
       - name: Generate latest.yml
         run: pnpm updater
 
-      - name: Generate checksums
-        if: matrix.os == 'windows-latest'
-        run: pnpm checksum portable.7z
-
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -163,13 +159,6 @@ jobs:
         with:
           path: bin/
           merge-multiple: true
-
-      - name: Calculate checksums
-        run: |
-          cd bin/dist/
-          rm sparkle.app.plist
-          find . -type f -not -name "checksums.*" -not -name "*.sha256" -not -name "version.txt" | sort | xargs sha256sum > checksums.txt
-        shell: bash
 
       - name: Delete current release assets
         uses: 8Mi-Tech/delete-release-assets-action@main
@@ -194,6 +183,7 @@ jobs:
           files: |
             bin/latest.yml
             bin/dist/*
+            !bin/dist/sparkle.app.plist
           prerelease: true
 
   release:
@@ -252,28 +242,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add package.json
-          git commit -m "Update version to $CLEAN_VERSION"
+          git commit -m "update version to $CLEAN_VERSION"
           git push
-
-      - name: Setup pnpm
-        run: npm install -g pnpm
-
-      - name: Install Dependencies and Updater
-        run: |
-          pnpm i
-          pnpm updater
 
       - uses: actions/download-artifact@v4
         with:
           path: bin/
           merge-multiple: true
-
-      - name: Calculate checksums
-        run: |
-          cd bin/dist/
-          rm sparkle.app.plist
-          find . -type f -not -name "checksums.*" -not -name "version.txt" | sort | xargs sha256sum > checksums.txt
-        shell: bash
 
       - name: Delete Current
         uses: 8Mi-Tech/delete-release-assets-action@main
@@ -291,3 +266,4 @@ jobs:
           files: |
             latest.yml
             bin/dist/*
+            !bin/dist/sparkle.app.plist
